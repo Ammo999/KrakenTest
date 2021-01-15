@@ -1,0 +1,198 @@
+// Traverses ONE hop in links and unlocks the objects if it can.
+// Delete option to be added
+
+
+// A. Moghul - June 2020
+
+
+string logfile = "C:/temp/LinkDelete.txt"
+Stream  logFile  = write logfile
+
+
+void printToFile ( string s)
+{
+    print (s)    // Enable if you want output 
+    logFile << s
+}
+
+void lockObject ( ModuleVersion sourceModule, Object oSourceObj )
+{
+		string sSourceFullName = fullName(sourceModule)
+		string sSourceName = name (sourceModule)
+		string openStatus = lastError		
+		
+		Module mShare = share (sSourceFullName, false)
+		
+		if ( null openStatus ) 
+			printToFile "Unable to Lock - Module in use " sSourceName "\n"
+		else
+		{
+			if (isShare (mShare))
+			{
+				if (canLock (oSourceObj))
+				{
+					string sts = lock oSourceObj
+					if (sts != null)
+						printToFile "Locked " identifier oSourceObj " for " sSourceName "\n"
+				}
+				else if ( isLockedByUser (oSourceObj))
+				{
+					printToFile "Already locked "  identifier oSourceObj  " for " sSourceName "\n"
+				}
+				else
+				{
+					printToFile "Cannot lock object " identifier oSourceObj  " for " sSourceName "\n"
+				}
+			}
+			else	
+				printToFile "Unable to Edit-Share " sSourceName "\n"		
+		}
+
+		//printToFile  "" sSourceName " ID: " identifier oSourceObj "\n"
+
+		
+}
+
+// Show and optionally delete Input links
+
+void showIn( Object o, bool bDelete ) 
+{
+    Link l
+    LinkRef lr
+    ModName_ otherMod = null
+    ModuleVersion sourceModule = null
+    Object oSourceObj
+	
+	
+    string disp = null
+    string s = null
+
+    string linkModName = "*"
+	
+    for lr in all(o<-linkModName) do 
+	{
+        otherMod = module (sourceVersion lr)
+        if (!null otherMod) 
+		{
+            if ((!isDeleted otherMod) && (null data(sourceVersion lr))) 
+			{
+                load((sourceVersion lr),false)
+            }
+        }
+    }
+	
+    for l in all(o<-linkModName) do 
+	{
+        sourceModule = sourceVersion l
+        otherMod = module(sourceModule)
+		
+        if (null otherMod || isDeleted otherMod) continue
+        oSourceObj = source l
+        if (null oSourceObj) 
+		{
+            load(sourceModule,false)
+        }
+
+        oSourceObj = source l
+        if (null oSourceObj) 
+		{
+			printToFile "Object is null : " identifier oSourceObj "\n"
+			continue
+		}
+        if (isDeleted oSourceObj) 
+		{
+			printToFile "Object has been deleted : " identifier oSourceObj "\n"
+			continue
+		}
+
+		s = (identifier oSourceObj)
+		
+		//  Check to see if we can open as shared module object
+		lockObject ( sourceModule, oSourceObj )
+		
+		// Deleting Links as well?
+		
+		if ( bDelete )
+		{
+			printToFile "Deleted InLink " s " from " name (sourceModule) 
+			delete (l)
+		}
+			
+    }
+}
+
+
+// Show and optionally delete Output links
+// Show and optionally delete Input links
+
+void showOut( Object o, bool bDelete ) 
+{
+    Link l
+    LinkRef lr
+    ModName_ otherMod = null
+    ModuleVersion targetModule = null
+    Object oTargetObj
+	
+	
+    string disp = null
+    string s = null
+
+    string linkModName = "*"
+	
+    for l in all(o->linkModName) do 
+	{
+        otherMod = module (targetVersion l)
+        if (!null otherMod) 
+		{
+            if ((!isDeleted otherMod) && (null data(targetVersion l))) 
+			{
+                load((targetVersion l),false)
+            }
+        }
+    }
+	
+    for l in all(o->linkModName) do 
+	{
+        targetModule = targetVersion l
+        otherMod = module(targetModule)
+		
+        if (null otherMod || isDeleted otherMod) continue
+        oTargetObj = target l
+        if (null oTargetObj) 
+		{
+            load(targetModule,false)
+        }
+
+        oTargetObj = target l
+        if (null oTargetObj) 
+		{
+			printToFile "Object is null : " identifier oTargetObj "\n"
+			continue
+		}
+        if (isDeleted oTargetObj) 
+		{
+			printToFile "Object has been deleted : " identifier oTargetObj "\n"
+			continue
+		}
+
+		s = (identifier oTargetObj)
+		
+		//  Check to see if we can open as shared module object
+		lockObject ( targetModule, oTargetObj )
+		
+		// Deleting Links as well?
+		
+		if ( bDelete )
+		{
+			printToFile "Deleted InLink " s " from " name (targetModule) 
+			delete (l)
+		}
+			
+    }
+}
+
+
+Module m = current
+Object o = current
+showOut(o, false)
+flush (logFile)
