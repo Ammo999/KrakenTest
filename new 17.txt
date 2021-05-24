@@ -1,2 +1,8 @@
 // this is the gitglone kracken first ifle
 // a.moghul May 2021
+
+void Feature2()
+{
+ this is feaure 2 on main
+
+}
