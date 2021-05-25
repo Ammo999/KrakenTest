@@ -1,9 +1,1251 @@
-// this is the gitglone kracken first ifle
-// a.moghul May 2021
+// V&V Automated Checks
+// A. Moghul - March 2021 for Sperry Marine
+//
+
+Object o = obj
+#include "\\\\rsexukr-01.ukr.uk.ngcintl.com\\Shares\\Sub_Progs\\SPMS\\R - Requirements\\R-98 - DOORS DXL\\AutoChecks\\include\\Common.dxl"
+#include "\\\\rsexukr-01.ukr.uk.ngcintl.com\\Shares\\Sub_Progs\\SPMS\\R - Requirements\\R-98 - DOORS DXL\\AutoChecks\\include\\Subspec.dxl"
+//<
+//  V&V Checklist for the SRD
+//  A. Moghul - August 2020 for Sperry Marine
+//
+// v1.15 - Force modules to open for in/out links
+// v1.16 - Check voids have link to Voids Register
+// v1.17 - Compliance checks based on column name
+// v1.18 - Remove checks for PMS architecture
+// V1.19 - Remove information from domain =N/A check
+// v1.20 - Rework the compliance state checks
+// v1.21 - Add check for 383 or 402 in the title. Display warning if not present
+// v1.22 - Add 383/402 checks for  checkRequirementCoverage
+// v1.23 - Rename compliance state and compliance statements to their corresponding DCR number
+// v1.24 - Add more attributes to heading/info "N/A" checks
+// v1.25 - Remove heading check for batch number == N/A
+// v1.26 - Add TBD in saftey applicability checks
+// v1.27 - Split off HRS and SRD specific checks and global variables.
+// v1.28 - Remove HRS and SRD specific tests. Separate out into SRD specific and HRS Specific. 
+//         Remove the dependencie on Column title
+// 1.29  - Change Object Type == Requirement to matches, to handle subspec and techspec and others
+//         Add code to check for TBDs in compliance for non-requirements
+// 1.30  - Removed Review:xxx checks, removed o."V&V Checklist" code
+// 1.31  - Added checkDerivedToL5 - cant derive from customer requirement
+// 1.32  - Remove Domain checks on requirements.  Remove domain & Safety checks since domain has been disused
 
 
-void f1
+
+//#include "\\\\rsexukr-01.ukr.uk.ngcintl.com\\Shares\\Sub_Progs\\SPMS\\R - Requirements\\R-98 - DOORS DXL\\Includes\\SRDInc.dxl"
+//#include "C:\\Users\\moghuam01\\AM\\SperryGitDev\\DXL\\Non-Menu\\CommonInc.dxl"
+
+
+int i              = 0
+Column c           = currentColumn()
+//string sColTitle   = title  c 
+
+
+
+void displayWarning ( string s )
+{
+    displayRichWithColour sC1 s "}"
+}
+
+
+
+
+string myName ()
 {
 
-	print this is f1 branch
+	Module m = current
+ 	string sName = name m
+	return (sName)
 }
+
+// Check Mandatory Requirements
+// This is just checking to see if all of the mandatory requirements (from RMP) have been populated
+// The content of each of these is NOT verified for text based fields.  
+// For enumerations, it is assumed the Enumerated values are correct in the first place
+
+void checkCommonMandatoryFields ( )
+{
+    // Check Mandatory fields
+
+    if (( sObjType == "" )             || 
+        ( sObjStatus == "" )           || 
+        ( sChangeReq == "" )           ||  
+        ( sVerifMethod == "" )         || 
+        ( sVerifStrategy == "" )       || 
+        ( sSafetyApplic == "" )        
+        )
+    {
+        displayWarning  "WARNING: Mandatory attributes not complete : "
+        if ( sObjType == "" )          displayRichWithColour sC2 "Object Type"                     "}"
+        if ( sObjStatus == "" )        displayRichWithColour sC2 "Object Status"                   "}"
+        if ( sChangeReq == "" )        displayRichWithColour sC2 "Change Request"                  "}"
+        if ( sVerifMethod == "" )      displayRichWithColour sC2 "Verification Method"             "}"
+        if ( sVerifStrategy == "" )    displayRichWithColour sC2 "Verification Strategy"           "}"
+        if ( sSafetyApplic == "" )     displayRichWithColour sC2 "Safety Applicability"            "}"
+    }                                  
+    else
+    {
+        if (
+            ( sObjType                 != "" ) && 
+            ( sObjStatus               != "" ) && 
+            ( sChangeReq               != "" ) &&  
+            ( sVerifMethod             != "" ) && 
+            ( sVerifStrategy           != "" ) && 
+            ( sSafetyApplic            != "" )  
+           )
+        {
+            display "OK: Mandatory attributes OK" 
+        }
+    }
+}
+
+
+
+// Check Object Type
+// Check Object Type is appropriate. This should be one of the three requirement types
+// If Heading or Info, this is OK
+// Otherwise flag 
+
+void checkObjectType ( )
+{
+
+    if ( matches ("Requirement", sObjType ))
+    {
+        display "OK: Object Type is OK"
+    }
+    else if (( sObjType == "Heading") || ( sObjType == "Information"))
+        display "OK: Object type not Requirement "
+    else if (( sObjType == "N/A") || ( sObjType == "TBD"))
+        displayWarning "WARNING: Object type is N/A or TBD "
+}
+
+
+//  Check Safety Requirement
+//  This is simply checking if the Safety Applicability contains 'Safety Related' or 'Safety Functional'
+//  Oct 8 - 2020 Changed Safety Applicibilty to only have "Safety". Updated Accordingly
+void checkSafetyApplicability ( )
+{
+    bool bIsSafetyDomain    = false
+    bool bIsNADomain        = false
+    bool bIsSafetyApplic    = false
+    bool bIsBothSafety      = false
+    bool bIsAnySafety       = false
+    bool bIsNASafetyApplic  = false
+    bool bIsNoSafety        = false
+    bool bIsTBDSafety       = false
+
+    if (isMember(o."Domain", "Safety")) 
+        bIsSafetyDomain= true
+        
+    if (isMember(o."Domain", "N/A")) 
+        bIsNADomain= true   
+        
+    if (o."Safety Applicability" "" == "Safety")
+        bIsSafetyApplic = true
+        
+    if (o."Safety Applicability" "" == "N/A") 
+        bIsNASafetyApplic = true
+		
+    if (o."Safety Applicability" "" ==  "TBD") 
+        bIsTBDSafety = true
+
+    if (!bIsSafetyApplic && !bIsNASafetyApplic)  
+        bIsNoSafety = true
+        
+    // If Safety is N/A then goto next check
+    if (o."Safety Applicability" "" ==  "N/A") 
+    {
+        if (bIsSafetyApplic)
+            displayWarning "WARNING: Safety Applicability can't be 'N/A' and also Safety Related"
+        else if (!bIsSafetyDomain)
+        {
+            display ("OK. Not a Safety Requirement")
+        }
+        else
+        {
+            display "OK. Is a Safety Requirement"
+        }
+    }
+	
+	if (bIsTBDSafety && bIsSafetyDomain)
+		displayWarning "WARNING: Safety Applicability is 'TBD'"
+    
+    if (bIsNoSafety)
+        displayWarning "WARNING: Safety Applicability cannot be empty"
+
+//   // Cant have Safety Applic = N/A with Domain = safety
+//   if ((bIsSafetyDomain) && (bIsNASafetyApplic ))
+//       displayWarning "WARNING: Domain incldes Safety with Safety Applicability= N/A"
+//       
+//   // Cant have Domain = N/A with Safety Applicability = safety
+//   if ((bIsNADomain) && (bIsSafetyApplic ))
+//       displayWarning "WARNING: Can't have Domain = N/A with Applicability=Safety" 
+//
+//   // Domain must include Safety if Safety Applicibility = Safety
+//   if ((!bIsSafetyDomain) && (bIsSafetyApplic ))
+//       displayWarning "WARNING: Domain does not include Safety when Applicability=Safety"    
+        
+    // Cant be both Safety Related and Safety Functionality
+    if  (bIsSafetyApplic && bIsNASafetyApplic )
+            displayWarning "WARNING: Can't be Safety Related and also N/A"
+            
+    if (bIsSafetyApplic && bIsSafetyDomain)
+    {
+        display ("OK. Is a Safety Requirement")
+
+    }
+
+}
+
+
+
+//  Check IA Requirement
+//  This is simply checking if the Domain contains IA 
+
+
+//void checkIA (  )
+//{
+//
+//    bool bIsIA = false
+//
+//    if (matches ( "IA" , sDomain )) 
+//        bIsIA = true
+//
+//    if ( bIsIA )
+//    {
+//    
+//        display "OK: Is an IA Requirement " 
+//        bIsIA = false
+//    }
+//    // All IA should be empty
+//    else 
+//    {
+//        display "OK: Not an IA Requirement "
+//        bIsIA = false
+//    }
+//}
+//
+
+
+//  Check PMS Sub-Systems
+//  This is simply checking if the PMS Sub-Systems is not empty, since this field
+//  should have been checked during the reviews
+
+
+void checkSubSystems (  )
+{
+
+    if (sSubSys == "")
+    {
+        displayWarning "WARNING: PMS Sub-System Allocation empty "
+    }
+    else
+    {
+        display "OK: PMS Sub-System Allocation OK "
+    }
+}
+
+
+
+// Check every requirement for a Void/TBA/TBC/TBD
+
+
+void checkTBD ()
+{
+
+    if ( rTBD sObjText )
+		displayWarning "WARNING: There are TBDs or Voids in the Object Text "
+		
+    else if ( rTBD sVerifStrategy )
+		displayWarning "WARNING: There are TBDs or Voids in the Verification Strategy "		
+		
+	else if ( rTBD sJustification )
+		displayWarning "WARNING: There are TBDs or Voids in the Justification / Rationale"	
+		
+	else
+		display "OK: No TBDs found in main Object Text/Verif Strategy/Justification"
+
+}
+
+// check to see if there is a corresponding link to VOIDS register
+
+void checkforLinkToVoidsRegister ( )
+{
+    Link l
+    LinkRef lr
+    ModName_ otherMod          = null
+    ModuleVersion otherVersion = null
+    bool bFoundVoidLink = false 
+   
+    if ((  rVOID sObjText)              || 
+        (  rVOID sVerifStrategy)        || 
+		(  rVOID sLatestCompStatement ) ||
+        (  rVOID sJustification )  
+        )                        
+    {   
+	   
+		for l in all(o-> "*") do 
+		{
+			otherVersion = targetVersion l
+			otherMod = module(otherVersion)
+			if (null otherMod || isDeleted otherMod) continue
+			othero = target l
+			if (null othero) 
+			{
+				load(otherVersion,false)
+			}
+		}
+
+		for l in o -> "*"  do 
+		{   
+			otherVersion = targetVersion l
+			otherMod = module(otherVersion)
+			Object othero = target l
+			
+			if (null othero) 
+			{
+				load(otherVersion,false)
+			}
+
+			ModName_ mTgtMod = target l
+			Object oTarget = target l
+			string mTgtModule = fullName(mTgtMod)           
+
+
+			if ( matchVoidReg mTgtModule )
+			{
+				bFoundVoidLink = true
+			}            
+		}   
+
+		if (bFoundVoidLink == false )
+		{
+			if ( rVOID sObjText)
+				displayWarning "WARNING. Object Text has Void without a link to Voids Register"
+			if ( rVOID sVerifStrategy)
+				displayWarning "WARNING. Verification Strategy has Void without a link to Voids Register"
+			if ( rVOID sJustification)
+				displayWarning "WARNING. Justification/Rationale has Void without a link to Voids Register"	
+			if ( rVOID sLatestCompStatement)
+				displayWarning "WARNING. Compliance Statement has Void without a link to Voids Register"	
+		}
+		else
+			display "OK. ObjText/Justfcn/Verif Strategy/Compliance statement has Void with links to Voids Register"
+	}
+}
+
+
+// Check Derived Requirements
+
+void checkDerivedRequirement (  )
+{
+
+    if ( sObjType == "Derived Requirement" )
+    {
+        if ( rDerived sJustification )  
+        {
+            display "OK: Derived Req with Justification"
+        }
+        else
+        {
+            displayWarning "WARNING: Derived Req may have invalid justification"
+        }
+    }
+    else  // Not a Derived Requirement
+    {
+        display "OK: Not a Derived Requirement"
+    }
+}
+
+// All Domains have been checked in earlier functions, so just check to see it is not empty
+
+//void checkDomain( )
+//{
+//    
+//     if ( matches ("Requirement", sObjType))
+//     {
+//         if ( sDomain == "" )
+//         {
+//             displayWarning "WARNING: Domain is Empty for Requirement object"
+//         }
+//         else if (isMember(o."Domain", "N/A")) 
+//         {
+//             displayWarning "WARNING: Domain contains N/A"
+//         }
+//         else
+//         {
+//             display "OK: Domain is OK for Requirement Object" 
+//         }
+//     }
+//     else
+//     {
+//        if (( sObjType == "Heading" ))
+//        {
+//            if (sDomain != "N/A" )
+//            {
+//                displayWarning "WARNING: Domain is Not N/A for Heading"
+//            }
+//            else
+//            {
+//                display "OK: Domain is OK for Heading"
+//            }
+//        }
+//        
+//        if (( sObjType == "Information" ))
+//        {
+//            if (sDomain != "N/A" )
+//            {
+//                displayWarning "WARNING: Domain is Not N/A for Information"
+//            }
+//            else
+//            {
+//                display "OK: Domain is OK for Information"
+//            }
+//        }
+//        
+//        
+//    }
+//}
+
+// Check every Justification for keywords
+// Decision - for Decisions
+// TQ - for TQs
+// Source - for Derived requirements
+
+void checkJustificationKeywords (  )
+{
+
+    bool bfoundIssue = false        
+        
+    Regexp rTQ = regexp2 "TQ"                // Enter reason for TQ raised
+    Regexp rDerived = regexp2 "DERIVED"       // Enter Derived from for Derived Requirements
+    
+    if (sObjType == "Derived Requirement")
+    {
+        if (!(rDerived upper(sJustification)))
+        {
+            displayWarning "WARNING: No Derived Req Source in Justification"
+            bfoundIssue = true
+        }
+        else    
+            display "OK. Derived Requirement has Source"
+    }
+    
+
+	// Check to see if there is a TQ Link
+	if (sTQ != "")
+	{
+		if (!(rTQ upper(sJustification)))
+		{
+			displayWarning "WARNING: TQ Linked without reason in Justification"
+			bfoundIssue = true
+		}
+		else    
+			display "OK: Linked TQ has Justification"
+	}
+
+    
+    if  (!bfoundIssue) // 
+    {
+        display "OK: Justification Keywords"
+    }
+    //else  
+        //display "WARNING: Check TQ or Derived Req for Justification"
+}
+
+
+
+
+//
+// Checks to see if any Decomposed Requirements going to Level 5 Requirements Documents 
+// are linked to non-requirements.
+//
+
+void checkDecomposedL5 ()
+{
+
+    Regexp matchReq            = regexp2 "Requirement*"
+    Array aBadID               = create (20,1)
+    ModName_ otherMod          = null
+    ModuleVersion otherVersion = null
+    Link l
+    LinkRef lr
+    
+    int iCounter     = 0    
+    int iTotLinks    = 0
+    string sOTID     = ""
+    string sArrayIDs = ""
+    
+    bool bMatchAll = false
+    
+    if (sObjType == "Decomposed Requirement")
+    {
+        bool bFoundIssue = false 
+        bMatchAll = true
+        
+        for l in all(o-> "*") do 
+        {
+            otherVersion = targetVersion l
+            otherMod = module(otherVersion)
+            if (null otherMod || isDeleted otherMod) continue
+            othero = target l
+            if (null othero) 
+            {
+                load(otherVersion,false)
+            }
+        }
+                
+        for l in o -> "*"  do 
+        {   
+            otherVersion = targetVersion l
+            otherMod = module(otherVersion)
+            Object othero = target l
+            if (null otherMod || isDeleted otherMod) 
+            {
+                display "Target Module is NULL"
+                continue
+            }
+            
+            if (null othero) 
+            {
+                load(otherVersion,false)
+            }
+
+            ModName_ mTgtMod = target l
+            Object oTarget = target l
+            sOTID =  oTarget."Absolute Number"
+            
+            string mTgtModule = fullName(mTgtMod)
+            
+            if ((isDeleted oTarget) || (null oTarget))
+            {
+                displayWarning "WARNING Out-Links to Deleted Object: " sOTID ""
+            }
+            
+            if ((matchSS mTgtModule) || (matchTS mTgtModule) || (matchPMSFDS mTgtModule) || (matchAW mTgtModule))
+            {
+                iTotLinks++
+                string sOType = oTarget."Object Type"
+                if (matchReq sOType)
+                   bFoundIssue = bFoundIssue || false
+                else
+                {
+                   bFoundIssue = bFoundIssue || true
+                   put ( aBadID, sOTID, iCounter++, 1)
+                }
+            }
+            
+            //display "Bfound = " bFoundIssue " at id " sOTID ""
+        }
+        
+        for (i = 0 ; i <  iCounter ; i ++ )
+        {
+            sArrayIDs = ( string ( get ( aBadID, i, 1 )))
+
+            //display "Got ... " i " = " sArrayIDs "\n"
+        }
+
+
+        if (bFoundIssue && bMatchAll)
+		{
+            displayWarning "WARNING. Decomposed Requirement(s) not linked to L5 Requirement, ID(s):" sArrayIDs " from total " iTotLinks " links"
+			
+			// ****   for (i = 0 ; i <  iCounter ; i ++ )
+			// ****   {
+			// ****   	sArrayIDs = ( string ( get ( aBadID, i, 1 )))
+			// ****   }
+				
+		}
+        else
+            display "OK. Decomposed Requirement Linked to L5 Req"
+
+    //print mTgtModule "\n" 
+
+    }
+    else
+        display "OK. Links to L5 Requirement Not checked"
+}
+
+
+// Check if a derived requirement links to a customer requirement
+// Warning given if it is linked
+
+void checkDerivedToL5 ()
+{
+
+    Regexp matchReq            = regexp2 "Requirement*"
+    Array aBadID               = create (20,1)
+    ModName_ otherMod          = null
+    ModuleVersion otherVersion = null
+    Link l
+    LinkRef lr
+    
+    int iCounter     = 0    
+    int iTotLinks    = 0
+    string sOTID     = ""
+    string sArrayIDs = ""
+    
+    bool bMatchAll = false
+    
+    if (sObjType == "Derived Requirement")
+    {
+        bool bFoundIssue = false 
+        bMatchAll = true
+        
+        for l in all(o-> "*") do 
+        {
+            otherVersion = targetVersion l
+            otherMod = module(otherVersion)
+            if (null otherMod || isDeleted otherMod) continue
+            othero = target l
+            if (null othero) 
+            {
+                load(otherVersion,false)
+            }
+        }
+                
+        for l in o -> "*"  do 
+        {   
+            otherVersion = targetVersion l
+            otherMod = module(otherVersion)
+            Object othero = target l
+            if (null otherMod || isDeleted otherMod) 
+            {
+                display "Target Module is NULL"
+                continue
+            }
+            
+            if (null othero) 
+            {
+                load(otherVersion,false)
+            }
+
+            ModName_ mTgtMod = target l
+            Object oTarget = target l
+            sOTID =  oTarget."Absolute Number"
+            string mTgtModule = fullName(mTgtMod)
+            
+            //if ((isDeleted oTarget) || (null oTarget))
+            //{
+            //    displayWarning "WARNING Out-Links to Deleted Object: " sOTID ""
+            //}
+            
+            if ((matchSS mTgtModule) || (matchTS mTgtModule) || (matchPMSFDS mTgtModule) || (matchAW mTgtModule))
+            {
+                iTotLinks++
+                string sOType = oTarget."Object Type"
+                if (matchReq sOType)
+				{
+					bFoundIssue = bFoundIssue || true
+					put ( aBadID, sOTID, iCounter++, 1)
+				}
+                else
+                {
+                   bFoundIssue = bFoundIssue || false
+                }
+            }
+            //display "Bfound = " bFoundIssue " at id " sOTID ""
+        }
+        
+        for (i = 0 ; i <  iCounter ; i ++ )
+        {
+            sArrayIDs = ( string ( get ( aBadID, i, 1 )))
+            //display "Got ... " i " = " sArrayIDs "\n"
+        }
+
+        if (bFoundIssue && bMatchAll)   
+            displayWarning "WARNING. Derived Requirement(s) Links to L5 Requirement, ID(s):" sArrayIDs " from total " iTotLinks " links"
+        else
+            display "OK. Derived Requirement Not Linked to L5 Req"
+
+    //print mTgtModule "\n" 
+    }
+}
+
+//
+// Check that Heading and Information Objects have "N/A" at the appropriate places 
+//
+
+
+void checkNAForHdgInfo()
+{
+    if ((sObjType == "Information" ) || (sObjType == "Heading"))
+    {
+       
+        if (( sVerifMethod      != "N/A") ||
+            ( sVerifStrategy    != "N/A") ||
+            ( sSubSys           != "N/A") ||
+            ( sSafetyApplic     != "N/A") ||
+            ( sObjStatus        != "N/A") ||
+            ( sAnalysis         != "N/A") ||
+            ( sJustification    != "N/A") /*||
+			( sDomain           != "N/A") ||
+            ( sReviewSW         != "N/A") ||
+            ( sReviewMech       != "N/A") ||
+            ( sReviewCont       != "N/A") ||
+            ( sReviewIA         != "N/A") ||
+            ( sReviewVV         != "N/A") ||
+            ( sReviewSafe       != "N/A") */
+			)
+        {
+                displayWarning "WARNING: Info/Heading should be N/A for: "
+                
+                if ( sVerifMethod      != "N/A")  displayRichWithColour sC2 "Verification Method             " "}"
+                if ( sVerifStrategy    != "N/A")  displayRichWithColour sC2 "Verification Strategy           " "}"
+                if ( sSubSys           != "N/A")  displayRichWithColour sC2 "PMS Sub-Systems                 " "}"
+                if ( sSafetyApplic     != "N/A")  displayRichWithColour sC2 "Safety Applicability            " "}"
+            //  if ( sDomain           != "N/A")  displayRichWithColour sC2 "Domain                          " "}"
+                if ( sObjStatus        != "N/A")  displayRichWithColour sC2 "Object Status                   " "}"
+                if ( sAnalysis         != "N/A")  displayRichWithColour sC2 "Analysis                        " "}"
+                if ( sJustification    != "N/A")  displayRichWithColour sC2 "Justification / Rationalisation " "}"
+             // if ( sReviewSW         != "N/A")  displayRichWithColour sC2 "Review:SW                       " "}"
+             // if ( sReviewMech       != "N/A")  displayRichWithColour sC2 "Review:Mechanical               " "}"
+             // if ( sReviewCont       != "N/A")  displayRichWithColour sC2 "Review:Controls                 " "}"
+             // if ( sReviewIA         != "N/A")  displayRichWithColour sC2 "Review:IA                       " "}"
+             // if ( sReviewVV         != "N/A")  displayRichWithColour sC2 "Review:VV                       " "}"
+             // if ( sReviewSafe       != "N/A")  displayRichWithColour sC2 "Review:Safety                   " "}"
+				
+				// Special case for Batch number - only for information objects -NQ request
+                if (( sBatchNum         != "N/A")  && (sObjType == "Information" ))
+					displayRichWithColour sC2 "Batch Number                    " "}"
+
+        }
+        else
+            display "OK. Info/Heading contain no N/A"
+		
+
+    }
+}
+
+//
+// Check that Heading and Information Objects are not linked to any SRS or HRS objects
+//
+
+void checkHDGInfoforSRSHRS ()
+{
+    Link l
+    LinkRef lr
+    Array aBadID               = create (20,1)
+    ModName_ otherMod          = null
+    ModuleVersion otherVersion = null
+    string sOTID               = ""
+    string sArrayIDs           = ""
+    int iCounter               = 0    
+    
+    bool bMatchAll = false
+    
+    if ((sObjType == "Heading") || (sObjType == "Information"))
+    {
+        bool bFoundIssue = false 
+        bMatchAll = true
+        
+        for lr in all(o<- "*") do 
+        {
+            otherMod = module (sourceVersion lr)
+            if (!null otherMod) 
+            {
+                if ((!isDeleted otherMod) && (null data(sourceVersion lr))) 
+                {
+                    load((sourceVersion lr),false)
+                }
+            }
+        }
+                
+        for l in o <- "*"  do 
+        {   
+            otherVersion = sourceVersion l
+            otherMod = module(otherVersion)
+            Object othero = source l
+            
+            if (null otherMod || isDeleted otherMod) 
+            {
+                display "Source Module is NULL"
+                continue
+            }
+            
+            ModName_ mSrcMod = source l
+            Object oSource = source l
+            sOTID =  oSource."Absolute Number"          
+
+            string mSrcModule = fullName(mSrcMod)
+            
+            if ((isDeleted oSource) || (null oSource))
+            {
+                displayWarning "WARNING In-Links to Deleted Object :" sOTID ""
+            }
+            
+            if ((matchSW mSrcModule) || (matchHW mSrcModule))
+            {
+               bFoundIssue = bFoundIssue || true
+               put ( aBadID, sOTID, iCounter++, 1)
+            }
+            else
+            {
+               bFoundIssue = bFoundIssue || false
+            }
+        }
+        
+        for (i = 0 ; i <  iCounter ; i ++ )
+        {
+            sArrayIDs = ( string ( get ( aBadID, i, 1 )))
+            //display "Got ... " i " = " sArrayIDs "\n"
+        }
+
+        if (bFoundIssue && bMatchAll)   
+            displayWarning "WARNING. Info/Hdg Linked to SRS/HRS: ID(s)" sArrayIDs ""
+        else
+            display "OK. Info/Hdg not linked to SRS/HRS"
+
+    //print mSrcModule "\n" 
+
+    }
+    else
+        display "OK. No check for non-Hdg/Info to SRS/HRS"
+}
+
+
+
+//
+// For any Requirements which DO NOT have an incoming link from any SRS module or any Hardware module, a warning is issued
+// Also checks if the incoming links are not from a Requirement
+//
+
+
+void checkReqHasLinksToSRSORHRS ()
+{
+
+    Regexp matchReq     = regexp2 "Requirement*"
+    Array aBadID        = create (20,1)
+    Link l
+    LinkRef lr
+    ModName_ otherMod   = null
+    ModuleVersion otherVersion = null
+
+    string sObjType     = o."Object Type"
+    string sOTID        = ""
+    string sArrayIDs    = ""
+    int iCounter        = 0 
+    bool bMatchAll      = false
+    
+    if ( matches("Requirement", sObjType))
+    {
+        bool bFoundIssue = true 
+        bool bIssuedWarnOnce = false
+        bool bNotifiedOKOnce = false
+        bMatchAll        = true
+        
+        for lr in all(o<- "*") do 
+        {
+            otherMod = module (sourceVersion lr)
+            if (!null otherMod) 
+            {
+                if ((!isDeleted otherMod) && (null data(sourceVersion lr))) 
+                {
+                    load((sourceVersion lr),false)
+                }
+            }
+        }
+        
+        for l in o <- "*"  do 
+        {   
+            otherVersion = sourceVersion l
+            otherMod = module(otherVersion)
+            Object othero = source l
+            if (null otherMod || isDeleted otherMod) 
+            {
+                displayWarning "WARNING: Source Module is NULL"
+                continue
+            }
+            
+            ModName_ mSrcMod = source l
+            Object oSource = source l
+            sOTID =  oSource."Absolute Number"
+            string mSrcModule = fullName(mSrcMod)
+            
+            if ((isDeleted oSource) || (null oSource))
+            {
+                displayRichWithColour sC3  "INFO: In-Links from Deleted Object: " sOTID ""
+            }
+            
+            // if the source module matches with SRS or HRS (OK)
+            if ((matchSW mSrcModule) || (matchHW mSrcModule))
+            {
+                string sOType = oSource."Object Type"
+                
+                // Check that it links to a Requirement
+                if (matchReq sOType)
+                {
+                    if ( !bNotifiedOKOnce)
+                    {
+                        display "OK. Requirement has link from SRS/HRS Req"
+                        bNotifiedOKOnce = true 
+                    }
+                   bFoundIssue = bFoundIssue && false
+                }
+                else  // Not matched to a Requirement
+                {
+                   if (! bIssuedWarnOnce)
+                   {
+                        displayRichWithColour sC3 "INFO: In-link from SRS/HRS is not from a Requirement. Id:"  sOTID "(" sOType ")"
+                        bIssuedWarnOnce = true
+                    }
+                }
+            }
+            else if (matchPMSArch mSrcModule)
+            {
+                // This is ok, but no need to do anything
+            }
+            else // Source module didnt match with HRS/SRS
+            {
+                   bFoundIssue = bFoundIssue && true
+                   put ( aBadID, sOTID, iCounter++, 1)
+            }
+        }
+        
+        for (i = 0 ; i <  iCounter ; i ++ )
+        {
+            sArrayIDs = sArrayIDs " " ( string ( get ( aBadID, i, 1 )))
+            //display "Got ... " i " counter = " iCounter " " sArrayIDs "\n"
+        }
+
+        if (bFoundIssue && bMatchAll)
+        {
+            if ( iCounter > 0 )
+                displayRichWithColour sC3 "INFO. No In-links from SRS/HRS Requirement. ID(s) " sArrayIDs "" 
+            else
+                displayRichWithColour sC3 "INFO. No In-links from SRS/HRS Requirement" 
+        }
+    }
+    else
+        display "OK. Link to HRS/SRS not checked"
+
+}
+
+
+								
+
+void checkComplianceStateAndStatement ()
+{
+
+   string sState = sLatestCompState       
+   string sCompliance = sLatestCompStatement   
+
+    if (( sState == "" ) || ( sCompliance == "" ))
+    {
+        displayWarning  "WARNING: Mandatory attributes not complete : "
+        if ( sState      == "" )   displayRichWithColour sC2 sEventComplianceState      "}"
+        if ( sCompliance == "" )   displayRichWithColour sC2 sEventComplianceStatement  "}"
+    }
+    else
+    {
+        if (( sState != "" ) && ( sCompliance != "" ))
+        {
+            display "OK: Mandatory Compliance attributes OK for this event "  "" 
+        }
+    }
+}
+
+
+void checkComplianceVoid()
+{
+	string sCat = "WARNING: TBDs or Voids in the " sEventComplianceState ""
+	
+    if ( rTBD sLatestCompStatement)
+		displayWarning sCat ""
+}
+
+
+void checkInfoHdgComplianceNA ()
+{
+    if ((sObjType == "Information" ) || (sObjType == "Heading"))
+    {
+		if ( sLatestCompState != "N/A") 
+			displayWarning "WARNING: " sEventComplianceState " should be N/A for Information/Heading " 
+		else
+			display "OK: Info/Heading " sEventComplianceState " is N/A"
+			
+		if (sLatestCompStatement != "N/A")
+			displayWarning "WARNING: " sEventComplianceStatement " should be N/A for Information/Heading " 
+		else
+			display "OK: Info/Heading " sEventComplianceStatement " is N/A"	
+	}
+}
+
+
+void displayVVMsg ( Regexp reMatch, string sVVMethod )
+{
+    string sVs = o."Verification Strategy"
+	
+	if (reMatch sVs) 
+			display "OK: V&V Strategy Matches V&V Method: " sVVMethod
+		else
+			displayWarning "WARNING: V&V Strategy does NOT match V&V Method:" sVVMethod
+}
+
+// Ensure that the V&V Method matches up with the V&V Strategy
+void  checkVerification ()
+{
+	string aVMethods[] = {"Inspection", "Analysis", "Demonstration", "Test"}
+    Regexp mVVI    = regexp2 "[Ii]nspect*"
+	Regexp mVVA    = regexp2 "[Aa]nalysis*"
+	Regexp mVVD    = regexp2 "[Dd]emo*"
+	Regexp mVVT    = regexp2 "[Tt]est*"
+	
+	
+	if (((isMember(o."Verification Method", "Inspection" ))    ||    
+	     (isMember(o."Verification Method", "Analysis" ))      || 
+	     (isMember(o."Verification Method", "Demonstration" )) ||
+	     (isMember(o."Verification Method", "Test" ))
+		 ) &&
+	     (isMember(o."Verification Method", "TBD"))
+	   )
+	   displayWarning "WARNING: Cannot have TBD as well as others in V&V Method"
+	
+	if (isMember(o."Verification Method", "TBD"))
+	{
+		displayWarning "WARNING: Verification method is TBD"
+		return
+	}
+
+	if (isMember(o."Verification Method", "Inspection" ))    displayVVMsg (mVVA, "Inspect") 
+	if (isMember(o."Verification Method", "Analysis" ))      displayVVMsg (mVVA, "Analysis") 
+	if (isMember(o."Verification Method", "Demonstration" )) displayVVMsg (mVVD, "Demonstration") 
+	if (isMember(o."Verification Method", "Test" ))          displayVVMsg (mVVT, "Test") 
+}      
+
+// check the Compliance state is not Compliant if V&V Method is Test, Inspection or Demonstration
+void  checkComplianceVV_TID ()
+{
+	if (((isMember(o."Verification Method", "Inspection" ))     ||    
+	     (isMember(o."Verification Method", "Analysis" ))       || 
+	     (isMember(o."Verification Method", "Demonstration" ))) && 
+		 (matches(sLatestCompState      , "Compliant"))          
+	   )
+	displayWarning "WARNING: Cannot have Compliance state 'Compliant' for V&V Method Inspection/Test/Demonstration"
+} 
+
+//if (isMember(o."Change Request", "DCR00402 - CCC DDR work"))
+
+
+// Customer Requirements must
+// Have compliance not equal to N/A and
+// Have Change Request contain specified CReq
+// incoming linked requirements must have the specified Change Request 
+// Any requirement which does not have these conditions will be highlighted
+
+void checkHasOneReqLinkedWithCR (string sCR )
+{
+
+    Regexp matchReq     = regexp2 "Requirement*"
+    Link l
+    LinkRef lr
+    ModName_ otherMod   = null
+    ModuleVersion otherVersion = null
+
+    string sObjType     = o."Object Type"
+	string sLocalCR     = o."Change Request"
+    string sOTID        = ""
+	
+	if (matches(sCR, sLocalCR))
+	{
+		if ( sLatestCompState != "N/A")
+		{
+			if ( matches("Requirement", sObjType))
+			{
+				bool bFoundMatch = false 
+				
+				for lr in all(o<- "*") do 
+				{
+					otherMod = module (sourceVersion lr)
+					if (!null otherMod) 
+					{
+						if ((!isDeleted otherMod) && (null data(sourceVersion lr))) 
+						{
+							load((sourceVersion lr),false)
+						}
+					}
+				}
+				
+				for l in o <- "*"  do 
+				{   
+					otherVersion = sourceVersion l
+					otherMod = module(otherVersion)
+					Object othero = source l
+					if (null otherMod || isDeleted otherMod) 
+					{
+						displayWarning "WARNING: Source Module is NULL"
+						continue
+					}
+					
+					ModName_ mSrcMod = source l
+					Object oSource = source l
+					sOTID =  oSource."Absolute Number"
+					string mSrcModule = fullName(mSrcMod)
+					
+					if ((isDeleted oSource) || (null oSource))
+					{
+						displayRichWithColour sC3  "INFO: In-Links from Deleted Object: " sOTID ""
+					}
+					
+					// Only perform checks if Local compliance is not NA
+					
+					// if the source module matches with SRD 
+					if ((matchSRD mSrcModule))
+					{
+						string sOType = oSource."Object Type"
+						string sSrcChangeReq = oSource."Change Request"
+
+						// Check that it links to a Requirement
+						if (matchReq sOType)
+						{
+							if (matches(sCR, sSrcChangeReq))
+							{
+								bFoundMatch = true 
+								break
+							}
+					   }
+					}
+				}
+
+				if (bFoundMatch)
+					display "OK. Requirement has link from SRD with Change Requst " sCR
+				else
+					displayWarning  "WARNING. There are NO linked SRD requirements where 'Compliance State != N/A', matching Change Request " sCR
+			}
+		}
+	}
+}
+
+
+
+
+// Customer Requirements must
+// Customer level requirements with N/A in compliance state should not have any linked requirements
+// with the change request tag
+
+
+void checkNAhasNoReqsLinked(string sCR )
+{
+
+    Regexp matchReq     = regexp2 "Requirement*"
+    Link l
+    LinkRef lr
+    ModName_ otherMod   = null
+    ModuleVersion otherVersion = null
+
+    string sObjType     = o."Object Type"
+    string sOTID        = ""
+	
+
+	if ( sLatestCompState == "N/A")
+	{
+		if ( matches("Requirement", sObjType))
+		{
+			bool bFoundMatch = false 
+			
+			for lr in all(o<- "*") do 
+			{
+				otherMod = module (sourceVersion lr)
+				if (!null otherMod) 
+				{
+					if ((!isDeleted otherMod) && (null data(sourceVersion lr))) 
+					{
+						load((sourceVersion lr),false)
+					}
+				}
+			}
+			
+			for l in o <- "*"  do 
+			{   
+				otherVersion = sourceVersion l
+				otherMod = module(otherVersion)
+				Object othero = source l
+				if (null otherMod || isDeleted otherMod) 
+				{
+					displayWarning "WARNING: Source Module is NULL"
+					continue
+				}
+				
+				ModName_ mSrcMod = source l
+				Object oSource = source l
+				sOTID =  oSource."Absolute Number"
+				string mSrcModule = fullName(mSrcMod)
+				
+				if ((isDeleted oSource) || (null oSource))
+				{
+					displayRichWithColour sC3  "INFO: In-Links from Deleted Object: " sOTID ""
+				}
+				
+				// Only perform checks if Local compliance is not NA
+				
+				// if the source module matches with SRD 
+				if ((matchSRD mSrcModule))
+				{
+					string sOType = oSource."Object Type"
+					string sSrcChangeReq = oSource."Change Request"
+
+					// Check that it links to a Requirement
+					if (matchReq sOType)
+					{
+						if (matches(sCR, sSrcChangeReq))
+						{
+							bFoundMatch = true 
+							break
+						}
+				   }
+				}
+			}
+
+			if (bFoundMatch)
+				displayWarning  "WARNING. L5 'N/A Compliant' Requirement has linked requirements matching Change Request " sCR
+			else
+				display "OK. Requirement has link from SRD with Change Requst " sCR
+		}
+	}
+}
+
+
+
+ 
+checkObjectType             ()
+checkNAForHdgInfo           ()                   // No enum defined for this yet
+checkHDGInfoforSRSHRS       ()                   // No enum defined for this yet
+//checkDomain               ()                   
+checkInfoHdgComplianceNA    ()    
+
+
+if ( matches("Requirement", sObjType))
+{
+
+//	checkIA                           ()         // Domain checks are no longer valid. Domain not used
+//	checkSubSystems                   ()
+
+	checkCommonMandatoryFields        ()
+	checkSafetyApplicability          ()  
+	checkTBD                          ()
+	checkforLinkToVoidsRegister       () 
+	checkDerivedRequirement           () 
+	checkDerivedToL5                  ()
+	checkJustificationKeywords        ()          // No changes to make       
+	checkDecomposedL5                 ()          // No enum defined for this yet 
+	checkReqHasLinksToSRSORHRS        ()          // No enum defined for this yet    
+	checkVerification                 ()
+	checkComplianceVV_TID             ()
+	
+	if ((matchSS myName()) || (matchTS myName()) || (matchPMSFDS myName()) || (matchAW myName()))
+	{
+		checkHasOneReqLinkedWithCR (sEventChangeRequestTag)
+		checkNAhasNoReqsLinked     (sEventChangeRequestTag)
+	}
+		
+//  Compliance Related Checks
+
+    if ( bPDR_DDRChecks)           
+		checkComplianceStateAndStatement()      // Run only if PDR_DDR flag is set
+		
+	checkComplianceVoid               ()
+	
+
+}
+
+
